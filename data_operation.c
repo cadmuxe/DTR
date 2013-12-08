@@ -1,3 +1,8 @@
+/* Author: Koonwah Chen
+ * E-mail: cadmuxeATgmail.com
+ * Dec 1, 2013
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -502,8 +507,14 @@ int add_count_to_index(struct index *index, struct count *count){
             insert_doc_to_term(itnp_temp,
                     count->name, tnp->count);
             itnp_temp->pre = itnp->pre;
-            itnp->pre->next = itnp_temp;
+            if(itnp->pre != NULL){
+                itnp->pre->next = itnp_temp;
+            }
+            else{
+                index->list = itnp_temp;
+            }
             itnp_temp->next = itnp;
+            itnp->pre = itnp_temp;
             tnp = tnp->next;
             itnp = itnp_temp;
             index->len_list += 1;

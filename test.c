@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "data_operation.h"
+#include "data_serialization.h"
 
 int main(int argc, char *argv[]){
     int i;
@@ -11,4 +12,7 @@ int main(int argc, char *argv[]){
 
     printf("################### Test Index #######################\n");
     test_index();
+
+    printf("################### Test Serialization ##################\n");
+    test_serialization();
 }
