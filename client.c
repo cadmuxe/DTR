@@ -126,6 +126,7 @@ int main(int argc, char *argv[]){
             return 0;
         }
         com = compare_string(argv[1], "search");
+        printf("%s %d\n",argv[1], com);
         if(com == 0){
             for(i=2; i< argc; i++){
                 create_query(argv[i], &new);
@@ -133,10 +134,12 @@ int main(int argc, char *argv[]){
                     query = new;
                 }
                 else{
-                    new->next = query;
+                    new->next = query->next;
                     query->next = new;
                 }
             }
+            req_retr(query);
+            return 0;
         }
         printf("Wrong command.\n");
         printf("\t\tindex filepath:\t index a file\n");

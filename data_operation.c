@@ -675,7 +675,9 @@ int create_query(char *term, struct query **query){
     int len;
     len = strlen(term) + 1;
     (*query) = (struct query *)malloc(sizeof(struct query));
+    memset((void *)(*query), 0, sizeof(struct query));
     (*query)->term = (char *)malloc(sizeof(char) * len);
+    memset((void *)((*query)->term), 0, sizeof(char)*len);
     memcpy((void *)((*query)->term), (void *)term, sizeof(char) * len);
     return 0;
 }
@@ -747,7 +749,7 @@ int write_buf(struct out_buf *buf, char *str){
     buf->use += len;
     return 0;
 }
-extern int write_buf_c(struct out_buf *buf, char c){
+int write_buf_c(struct out_buf *buf, char c){
     char *ptr;
     if(1 + buf->use  >= buf->size ){
         buf->buf = realloc((void *)(buf->buf), buf->size + 100 *sizeof(char));
@@ -758,6 +760,13 @@ extern int write_buf_c(struct out_buf *buf, char c){
     buf->use +=1;
     return 0;
 }
+int write_buf_i(struct out_buf *buf, int i){
+    char str[15];
+    sprintf(str, "%d", i);
+    write_buf(buf, str);
+    return 0;
+}
+
 int free_buf(struct out_buf **buf){
     free((*buf)->buf);
     free(*buf);

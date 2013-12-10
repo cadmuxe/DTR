@@ -44,6 +44,8 @@ void * dispatch(void *mes){
     }
     free(data);
     close(para->socket_fd);
+    free(para);
+    printf("[Server] Finished the work.\n");
     pthread_exit(0);
 }
 
@@ -180,12 +182,18 @@ int do_retr(int socket_fd, void *data){
         p_worker = p_worker->next;
     }
     create_out_buf(&out);
-    while(qrsl != NULL && limit >0){
-        write_buf(out, qrsl->doc_name);
-        write_buf(out, "\t\t");
-        write_buf(out, "\n");
-        qrsl = qrsl->next; 
-        limit--;
+    if(qrsl != NULL){
+        while(qrsl != NULL && limit >0){
+            write_buf(out, qrsl->doc_name);
+            write_buf(out, "\t\t");
+            write_buf_i(out, qrsl->weight);
+            write_buf(out, "\n");
+            qrsl = qrsl->next; 
+            limit--;
+        }
+    }
+    else{
+        write_buf(out, "No result.\n");
     }
     free_workers(&workers);
     send_data(socket_fd, out->buf, out->size);

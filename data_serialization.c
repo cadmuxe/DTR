@@ -510,6 +510,10 @@ int load_query_rsl(struct query_rsl **rsl, void *data){
         return -1;
     memcpy((void *)&len, data, sizeof(int));
     data += sizeof(int);    // len of query_rsl
+    if(len == 0){
+        (*rsl) = NULL;
+        return 0;
+    }
     
     memcpy((void *)&len_doc, data, sizeof(int));
     data += sizeof(int);

@@ -139,6 +139,7 @@ struct out_buf{
 extern int create_out_buf(struct out_buf **buf);
 extern int write_buf(struct out_buf *buf, char *str);
 extern int write_buf_c(struct out_buf *buf, char c);
+extern int write_buf_i(struct out_buf *buf, int i);
 extern int free_buf(struct out_buf **buf);
 extern int test_query();
 extern int test_buf();
