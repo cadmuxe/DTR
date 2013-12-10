@@ -20,7 +20,7 @@ int dump_doc_part(struct doc_part *part, void **data){
     int new_size, len_name;
     char mytype = (char)DOC_PART;
     size = 0;
-    
+    size += sizeof(char);   // a flag place;
     size += sizeof(char);    // for data_type  
     size += sizeof(int);     // for length of doc_name
     len_name = strlen(part->doc_name) + 1;
@@ -33,6 +33,7 @@ int dump_doc_part(struct doc_part *part, void **data){
     (*data) = malloc(size);
     ptr = (*data);
     memset(ptr, 0, size);
+    ptr += sizeof(char);    // flag
     memcpy(ptr, (void *)(&mytype), sizeof(char)); //data_type
     ptr += sizeof(char);
     memcpy(ptr, (void *)(&len_name), sizeof(int));//length of doc_name
@@ -53,7 +54,8 @@ int load_doc(struct doc **doc, void *data){
     int len_name, len;
     char *doc_name;
     char mytype;
-    
+   
+    data += sizeof(char); // flag
     // check
     memcpy(&mytype, data, sizeof(char));
     data += sizeof(char);
@@ -88,6 +90,7 @@ int dump_count(struct count *count, void **data){
 
     // calculate the size of data
     size = 0;
+    size += sizeof(char);   //flag
     size += sizeof(char);   // mytype
     len_name = strlen(count->name) + 1;
     size += sizeof(int);    // for the length of name
@@ -108,7 +111,7 @@ int dump_count(struct count *count, void **data){
     (*data) = malloc( size);
     ptr = *data;
     memset(ptr, 0, size);
-
+    ptr += sizeof(char); // flag
     memcpy(ptr, (void *)&mytype, sizeof(char)); //mytype
     ptr += sizeof(char);
     
@@ -145,6 +148,7 @@ int load_count(struct count **count, void *data){
     struct count_term_node *pre, *cur;
     char mytype;
     
+    data += sizeof(char); // flag
     // check
     memcpy(&mytype, data, sizeof(char));
     data += sizeof(char);
@@ -191,7 +195,8 @@ int dump_index(struct index *index, void **data){
     void *ptr;
     struct index_term_node *tnode;
     struct index_doc_node *dnode;
-    mytype = (char)INDEX;
+    mytype = (char)INDEX; 
+    size += sizeof(char); // flag
     size += sizeof(char);   // type
     size += sizeof(int);    // index.len_list
     tnode = index->list;
@@ -213,7 +218,7 @@ int dump_index(struct index *index, void **data){
     (*data) = malloc(size);
     memset((*data), 0, size);
     ptr = (*data);
-    
+    ptr += sizeof(char);  // flag
     memcpy(ptr, &mytype, sizeof(char));
     ptr += sizeof(char);
     memcpy(ptr, &(index->len_list), sizeof(int));
@@ -252,6 +257,7 @@ int load_index(struct index **index, void *data){
     int len, i, j, count;
     char mytype;
     
+    data += sizeof(char); // flag
     // check
     memcpy(&mytype, data, sizeof(char));
     data += sizeof(char);
@@ -356,3 +362,199 @@ int test_serialization(){
         return 0;
 
 }
+
+int dump_query(struct query *query, void **data){
+    size_t size;
+    char mytype;
+    void *ptr;
+    int len_term, len;
+    struct query *q;
+    
+    mytype = (char)QUERY;
+    // calculate size;
+    size =0;
+    size += sizeof(char); //flag
+    size += sizeof(char); //type
+    size += sizeof(int); // len of query
+    
+    q = query;
+    len = 0;
+    while(q != NULL){
+        len++;
+        len_term = strlen(q->term) +1;
+        size += sizeof(int); // len of term
+        size += sizeof(char) * len_term;  // term
+        q = q->next;
+    }
+    
+    (*data) = malloc(size);
+    memset(*data, 0, size);
+
+    ptr = (*data);
+    ptr += sizeof(char);    //flag
+    
+    memcpy(ptr, (void *)&mytype, sizeof(char));
+    ptr += sizeof(char);    //type
+
+    memcpy(ptr, (void *)&len, sizeof(int));
+    ptr += sizeof(int); // len of query
+
+    q= query;
+    while(q != NULL){
+        len_term = strlen(q->term) +1;
+        memcpy(ptr, (void *)&len_term, sizeof(int));
+        ptr += sizeof(int);
+        memcpy(ptr, (void *)(q->term), sizeof(char)*len_term );
+        ptr += sizeof(char) * len_term;
+        q = q->next;
+    }
+    return size;
+}
+
+int load_query(struct query **query, void *data){
+    struct query *q, *new;
+    char mytype;
+    int len, i;
+    int len_term;
+    char buf[100];
+    data += sizeof(char);   // flag
+    memcpy((void *)&mytype, data, sizeof(char));
+    data += sizeof(char);   // type
+    if(mytype != (char)QUERY)
+        return -1;
+    memcpy((void *)&len, data, sizeof(int));
+    data += sizeof(int);    // len of query
+    
+    memcpy((void *)&len_term, data, sizeof(int));
+    data += sizeof(int);
+    memcpy((void *)buf, data, sizeof(char) * len_term);
+    data += sizeof(char) *len_term;
+    create_query(buf, &new);
+
+    (*query) = new;
+    q = new;
+
+    for(i=1; i< len; i++){
+        memcpy((void *)&len_term, data, sizeof(int));
+        data += sizeof(int);
+        memcpy((void *)buf, data, sizeof(char) * len_term);
+        data += sizeof(char) *len_term;
+        create_query(buf, &new);
+        q->next = new;
+        q=new;
+    }
+    return 0;
+}
+
+int dump_query_rsl(struct query_rsl *rsl, void **data){
+    size_t size;
+    char mytype;
+    void *ptr;
+    int len_doc, len;
+    struct query_rsl *r;
+    
+    mytype = (char)QUERY_RSL;
+    // calculate size;
+    size =0;
+    size += sizeof(char); //flag
+    size += sizeof(char); //type
+    size += sizeof(int); // len of query_rsl
+    
+    r = rsl;
+    len = 0;
+    while(r != NULL){
+        len++;
+        len_doc = strlen(r->doc_name) +1;
+        size += sizeof(int); // len of doc_name
+        size += sizeof(char) * len_doc;  // doc_name
+        size += sizeof(int);    // weight
+        r = r->next;
+    }
+    
+    (*data) = malloc(size);
+    memset(*data, 0, size);
+
+    ptr = (*data);
+    ptr += sizeof(char);    //flag
+    
+    memcpy(ptr, (void *)&mytype, sizeof(char));
+    ptr += sizeof(char);    //type
+
+    memcpy(ptr, (void *)&len, sizeof(int));
+    ptr += sizeof(int); // len of queery_rsl
+
+    r= rsl;
+    while(r != NULL){
+        len_doc = strlen(r->doc_name) +1;
+        memcpy(ptr, (void *)&len_doc, sizeof(int));
+        ptr += sizeof(int);
+        memcpy(ptr, (void *)(r->doc_name), sizeof(char)*len_doc );
+        ptr += sizeof(char) * len_doc;
+        memcpy(ptr, (void *)&(r->weight), sizeof(int));
+        ptr += sizeof(int);
+        r = r->next;
+    }
+    return size;
+}
+
+int load_query_rsl(struct query_rsl **rsl, void *data){
+    struct query_rsl *r, *new;
+    char mytype;
+    int len, i, weight;
+    int len_doc;
+    char buf[100];
+    data += sizeof(char);   // flag
+    memcpy((void *)&mytype, data, sizeof(char));
+    data += sizeof(char);   // type
+    if(mytype != (char)QUERY_RSL)
+        return -1;
+    memcpy((void *)&len, data, sizeof(int));
+    data += sizeof(int);    // len of query_rsl
+    
+    memcpy((void *)&len_doc, data, sizeof(int));
+    data += sizeof(int);
+    memcpy((void *)buf, data, sizeof(char) * len_doc);
+    data += sizeof(char) *len_doc;
+    memcpy((void *)&weight, data, sizeof(int)); // weight
+    data += sizeof(int);
+    create_query_rsl(&new, buf, weight);
+
+    (*rsl) = new;
+    r = new;
+
+    for(i=1; i< len; i++){
+        memcpy((void *)&len_doc, data, sizeof(int));
+        data += sizeof(int);
+        memcpy((void *)buf, data, sizeof(char) * len_doc);
+        data += sizeof(char) *len_doc;
+        memcpy((void *)&weight, data, sizeof(int)); // weight
+        data += sizeof(int);
+        create_query_rsl(&new, buf, weight);
+        r->next = new;
+        r=new;
+    }
+    return 0;
+}
+
+int test_s_query(){
+    struct query *query, *q2, *nq;
+    struct query_rsl *rsl, *rsl2, *nr;
+    void *data;
+    
+    create_query("a", &query);
+    create_query("the", &q2);
+    query->next = q2;
+    dump_query(query, &data);
+    load_query(&nq, data);
+
+    create_query_rsl(&rsl, "hi",10);
+    create_query_rsl(&rsl2, "go", 100);
+    rsl->next = rsl2;
+    dump_query_rsl(rsl, &data);
+    load_query_rsl(&nr, data);
+    
+   return 0; 
+
+}
+
+

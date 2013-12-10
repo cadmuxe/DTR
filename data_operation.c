@@ -603,3 +603,207 @@ int test_index(){
     return 0;
 
 }
+
+int retrieve_f_index(struct index *index, int n, 
+        struct query *query, struct query_rsl **rsl){
+    struct query_rsl *n_rsl, *nn_rsl, *newrsl;
+    struct query *ptr_query;
+    struct index_term_node *inode;
+    struct index_doc_node *dnode;
+    int i,com;
+
+    i=0;
+    n_rsl = NULL;
+    ptr_query= query;
+    while(ptr_query != NULL){
+        inode = index->list;
+        nn_rsl = NULL;
+        while(inode != NULL){
+            com = compare_string(ptr_query->term, inode->term);
+            if(com == 0){
+                dnode = inode->list;
+                while(dnode != NULL){
+                    if(n!=0){
+                        i++;    // every term, get the top n docment.
+                        if(i>n)
+                            break;
+                    }       
+                    create_query_rsl(&newrsl, dnode->name, dnode->count);
+                    if(nn_rsl == NULL)
+                        nn_rsl = newrsl;
+                    else{
+                        newrsl->next = nn_rsl->next;
+                        nn_rsl->next = newrsl;
+                    }
+                    dnode = dnode->next;
+                }
+            }
+            inode = inode->next;
+        }
+        combine_query_rsl(&n_rsl, &nn_rsl);
+        ptr_query = ptr_query->next;
+    }
+    (*rsl) = n_rsl;
+    return 0;
+}
+
+int create_query_rsl(struct query_rsl **rsl, char *doc_name, int weight){
+    int len;
+    (*rsl) = (struct query_rsl *)malloc(sizeof(struct query_rsl));
+    memset((void *)(*rsl), 0, sizeof(struct query_rsl));
+    len = strlen(doc_name) + 1;
+    (*rsl)->doc_name = malloc(sizeof(char) * len);
+    memcpy((void *)((*rsl)->doc_name), (void *)doc_name, sizeof(char) * len);
+    (*rsl)->weight = weight;
+    (*rsl)->next = NULL;
+    return 0;
+}
+int free_query_rsl(struct query_rsl **rsl){
+    struct query_rsl *p, *p1;
+    p = (*rsl);
+    (*rsl) = NULL;
+    while(p != NULL){
+        p1 = p->next;
+        free(p->doc_name);
+        free(p);
+        p = p1;
+    }
+    return 0;
+}
+
+int create_query(char *term, struct query **query){
+    int len;
+    len = strlen(term) + 1;
+    (*query) = (struct query *)malloc(sizeof(struct query));
+    (*query)->term = (char *)malloc(sizeof(char) * len);
+    memcpy((void *)((*query)->term), (void *)term, sizeof(char) * len);
+    return 0;
+}
+int free_query(struct query **query){
+    struct query *p, *p1;
+    p = (*query);
+    (*query) = NULL;
+    while(p!= NULL){
+        p1 = p->next;
+        free(p->term);
+        free(p);
+        p = p1;
+    }
+    return 0;
+}
+int combine_query_rsl(struct query_rsl **rsl, struct query_rsl **rsl_a){
+    struct query_rsl *ptr, *ptr2;
+    struct query_rsl *list, *new;
+    int com;
+    if(*rsl == NULL){
+        (*rsl) = *rsl_a;
+        *rsl_a = NULL;
+        return 0;
+    }
+    else if(*rsl_a == NULL)
+        return 0;
+    ptr = (*rsl);
+    while(ptr != NULL){
+         ptr2 = (*rsl_a);
+         while(ptr2 != NULL){
+            com = compare_string(ptr->doc_name, ptr2->doc_name);
+            if(com == 0){
+                create_query_rsl(&new, ptr->doc_name, ptr->weight + ptr2->weight);
+                if(list == NULL)
+                    list = new;
+                else{
+                    new->next = list->next;
+                    list->next = new;
+                }
+            }
+            ptr2 = ptr2->next;
+         }
+        ptr = ptr->next;
+    }
+    free_query_rsl(rsl);
+    free_query_rsl(rsl_a);
+    (*rsl) = list;
+    return 0;
+}
+
+int create_out_buf(struct out_buf **buf){
+    (*buf) =(struct out_buf *)malloc(sizeof(struct out_buf));
+    (*buf)->buf = (char *)malloc(sizeof(char) * 100);
+    memset((void *)((*buf)->buf), 0, sizeof(char)*100);
+    (*buf)->size = 100 * sizeof(char);
+    (*buf)->use = 0;
+    return 0;
+}
+int write_buf(struct out_buf *buf, char *str){
+    int len;
+    char *ptr;
+    len = strlen(str);
+    if(len + buf->use  >= buf->size ){
+        buf->buf = realloc((void *)(buf->buf), buf->size + 100 *sizeof(char));
+        buf->size += 100 * sizeof(char);
+    }
+    ptr = buf->buf + buf->use;
+    memcpy(ptr, str, sizeof(char) * (len + 1));
+    buf->use += len;
+    return 0;
+}
+extern int write_buf_c(struct out_buf *buf, char c){
+    char *ptr;
+    if(1 + buf->use  >= buf->size ){
+        buf->buf = realloc((void *)(buf->buf), buf->size + 100 *sizeof(char));
+        buf->size += 100 * sizeof(char);
+    }
+    *(buf->buf + buf->use) = c;
+    *(buf->buf + buf->use + 1) = '\0';
+    buf->use +=1;
+    return 0;
+}
+int free_buf(struct out_buf **buf){
+    free((*buf)->buf);
+    free(*buf);
+    *buf = NULL;
+    return 0;
+}
+
+int test_query(){
+    struct doc *doc;
+    struct index *index;
+    struct count *count; 
+    struct query *query, *q2;
+    struct query_rsl *rsl;
+    int i,j;
+    
+    create_index(&index);
+
+    load_doc_from_f("../shakespeare/comedies/allswellthatendswell", &doc);
+    count_doc(doc, &count);
+    count->whole =1;
+    add_count_to_index(index, count);
+    free_doc(&doc);
+    free_count(&count);
+    
+    load_doc_from_f("../shakespeare/comedies/allswellthatendswell", &doc);
+    count_doc(doc, &count);
+    count->whole =1;
+    add_count_to_index(index, count);
+    free_doc(&doc);
+    free_count(&count);
+    
+    create_query("a", &query);
+    create_query("the", &q2);
+    query->next = q2;
+
+    retrieve_f_index(index, 100, query, &rsl);
+    return 0;
+}
+int test_buf(){
+    struct out_buf *buf;
+    create_out_buf(&buf);
+    write_buf_c(buf, '!');
+    write_buf(buf, "jdijdiskdidjdijdiddjdidjdijdiskdidjdijdiddjdidjdijdiskdidjdij");
+    write_buf(buf, "jdijdiskdidjdijdiddjdidjdijdiskdidjdijdiddjdidjdijdiskdidjdij");
+    write_buf(buf, "jdijdiskdidjdijdiddjdidjdijdiskdidjdijdiddjdidjdijdiskdidjdij");
+    write_buf(buf, "jdijdiskdidjdijdiddjdidjdijdiskdidjdijdiddjdidjdijdiskdidjdij");
+    free_buf(&buf);
+    return 0;
+}

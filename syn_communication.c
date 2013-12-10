@@ -27,11 +27,24 @@ int open_clientfd(char *hostname, int port){
         return -2;
     memset((void *)&serveraddr, 0, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
-    memcpy((void *)hp->h_addr, 
-            (void *)&serveraddr.sin_addr.s_addr, 
+    memcpy( (void *)&serveraddr.sin_addr.s_addr, 
+            (void *)hp->h_addr,
             hp->h_length);
     serveraddr.sin_port = htons(port);
 
+    if( connect(clientfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+        return -1;
+    return clientfd;
+}
+int open_clientfdi(unsigned int ip, int  port){
+    int clientfd;
+    struct sockaddr_in serveraddr;
+
+    if((clientfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        return -1;
+    serveraddr.sin_family = AF_INET;
+    serveraddr.sin_addr.s_addr = ip;
+    serveraddr.sin_port = htons(port);
     if( connect(clientfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
         return -1;
     return clientfd;
@@ -56,7 +69,7 @@ int open_listenfd(int port){
 
     if(bind(listenfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
         return -1;
-    if(listen(listenfd, ASYN_COMMUNICATION_LISTENQ) < 0)
+    if(listen(listenfd, SYN_COMMUNICATION_LISTENQ) < 0)
         return -1;
 
     return listenfd;
@@ -77,7 +90,6 @@ int send_data(int socket_fd, void *data, int size){
         ptr +=n;
         len -=n;
     }
-    close(socket_fd);
     return 1;
 }
 
@@ -103,11 +115,10 @@ int receive_data(int socket_fd, void **data){
         ptr += n;
         i -=n;
     }
-    close(socket_fd);
     return (int)len;
 }
 
-void test(){
+int test_syn_communication(){
     int server_pid, client_pid, pid;
     int server_sk, client_sk;
     int connect_fd;
@@ -115,6 +126,7 @@ void test(){
     char *rece;
     int n = 2;
     char *str ="test\n";
+    char *str2="Sent!!!\n";
     printf("len %d\n", (int)strlen(str));
     if( (server_pid =fork()) == 0){
         server_sk = open_listenfd(9999);
@@ -124,6 +136,7 @@ void test(){
         len = receive_data(connect_fd, (void **)&rece);
         printf("server: rece code %d\n",len);
         printf("Server: Succ rev- %s(%d)\n", rece, len);
+        send_data(connect_fd, str2, 9);
         exit(1);
     }
     else{
@@ -133,6 +146,8 @@ void test(){
         client_sk = open_clientfd("localhost", 9999);
         printf("Client: open!\n");
         status = send_data(client_sk, str, 5);
+        receive_data(client_sk, (void **)&rece);
+        printf("Client: Received!!!!!! %s\n",rece);
         close(client_sk);
         printf("Client: closed with %d\n",status);
         printf("Client: closed!\n");
@@ -145,6 +160,7 @@ void test(){
     }
     printf("Finished\n");
 
+    return 0;
 }
 
 

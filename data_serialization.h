@@ -11,7 +11,9 @@
 enum data_type{
     DOC_PART = 0,
     COUNT,
-    INDEX
+    INDEX,
+    QUERY,
+    QUERY_RSL
 };
 
 // serialize the struct and store in *data
@@ -28,6 +30,14 @@ extern int load_count(struct count **count, void *data);
 // return the size of *data
 extern int dump_index(struct index *index, void **data);
 extern int load_index(struct index **index, void *data);
+
+extern int dump_query(struct query *query, void **data);
+extern int load_query(struct query **query, void *data);
+
+extern int dump_query_rsl(struct query_rsl *rsl, void **data);
+extern int load_query_rsl(struct query_rsl **rsl, void *data);
+
+extern int test_s_query();
 
 extern int test_serialization();
 #endif

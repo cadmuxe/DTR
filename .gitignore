@@ -2,3 +2,7 @@
 *.out
 *.out.dSYM
 *.o
+*.txt
+server
+client
+cnode

@@ -111,4 +111,37 @@ extern int add_count_to_index(struct index *index, struct count *count);
 extern int free_index(struct index **index);
 
 extern int test_index();
+
+struct query_rsl{
+    char *doc_name;
+    int weight;
+    struct query_rsl *next;
+};
+
+struct query{
+    char *term;
+    struct query *next;
+};
+extern int retrieve_f_index(struct index *index, int n, 
+        struct query *query, struct query_rsl **rsl);
+extern int create_query_rsl(struct query_rsl **rsl, char *doc_name, int weight);
+extern int create_query(char *term, struct query **query);
+extern int combine_query_rsl(struct query_rsl **rsl, 
+        struct query_rsl **rsl_a);
+extern int free_query(struct query **query);
+extern int free_query_rsl(struct query_rsl **rsl);
+
+struct out_buf{
+    char *buf;
+    int use;
+    int size;
+};
+extern int create_out_buf(struct out_buf **buf);
+extern int write_buf(struct out_buf *buf, char *str);
+extern int write_buf_c(struct out_buf *buf, char c);
+extern int free_buf(struct out_buf **buf);
+extern int test_query();
+extern int test_buf();
+
+
 #endif
