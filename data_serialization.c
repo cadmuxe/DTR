@@ -18,7 +18,7 @@ int dump_doc_part(struct doc_part *part, void **data){
     size_t size;
     void *ptr;
     int new_size, len_name;
-    char mytype = (char)DOC_PART;
+    char mytype = (char)DOC;
     size = 0;
     size += sizeof(char);   // a flag place;
     size += sizeof(char);    // for data_type  
@@ -49,6 +49,43 @@ int dump_doc_part(struct doc_part *part, void **data){
     memset(ptr, 0, sizeof(char));
     return size;
 }
+int dump_doc(struct doc *doc, void **data){
+    // the order of data:
+    // data_type, length_of_doc_name, doc_name, size, data
+    size_t size;
+    void *ptr;
+    int new_size, len_name;
+    char mytype = (char)DOC;
+    size = 0;
+    size += sizeof(char);   // a flag place;
+    size += sizeof(char);    // for data_type  
+    size += sizeof(int);     // for length of doc_name
+    len_name = strlen(doc->name) + 1;
+    size += len_name * sizeof(char); // doc_name
+    size += sizeof(int);     // for the size
+    // add a '\0' to the end of data
+    new_size = doc->size + 1;
+    size += sizeof(char) * new_size; // for data
+    
+    (*data) = malloc(size);
+    ptr = (*data);
+    memset(ptr, 0, size);
+    ptr += sizeof(char);    // flag
+    memcpy(ptr, (void *)(&mytype), sizeof(char)); //data_type
+    ptr += sizeof(char);
+    memcpy(ptr, (void *)(&len_name), sizeof(int));//length of doc_name
+    ptr += sizeof(int);
+    // set the doc name
+    memcpy(ptr, (void *)(doc->name), len_name * sizeof(char));
+    ptr += len_name * sizeof(char);
+    memcpy(ptr, (void *)(&new_size), sizeof(int)); // data size
+    ptr += sizeof(int);
+    // set the data;
+    memcpy(ptr, (void *)(doc->data), sizeof(char) * doc->size);
+    ptr += sizeof(char) * doc->size;
+    memset(ptr, 0, sizeof(char));
+    return size;
+}
 
 int load_doc(struct doc **doc, void *data){
     int len_name, len;
@@ -59,7 +96,7 @@ int load_doc(struct doc **doc, void *data){
     // check
     memcpy(&mytype, data, sizeof(char));
     data += sizeof(char);
-    if (mytype != (char) DOC_PART)
+    if (mytype != (char) DOC)
         return -1;
 
     (*doc) = (struct doc *)malloc(sizeof(struct doc));
@@ -196,6 +233,7 @@ int dump_index(struct index *index, void **data){
     struct index_term_node *tnode;
     struct index_doc_node *dnode;
     mytype = (char)INDEX; 
+    size = 0;
     size += sizeof(char); // flag
     size += sizeof(char);   // type
     size += sizeof(int);    // index.len_list

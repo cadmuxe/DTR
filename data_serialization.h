@@ -9,7 +9,7 @@
 #define DATA_SERIALIZATION_H_
 
 enum data_type{
-    DOC_PART = 0,
+    DOC = 0,
     COUNT,
     INDEX,
     QUERY,
@@ -19,6 +19,7 @@ enum data_type{
 // serialize the struct and store in *data
 // return the size of *data
 extern int dump_doc_part(struct doc_part *part, void **data);
+extern int dump_doc(struct doc *doc, void **data);
 extern int load_doc(struct doc **doc, void *data);
 
 // serialize the struct and store in *data

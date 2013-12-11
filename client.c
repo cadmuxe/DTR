@@ -13,21 +13,25 @@
 #include "comm.h"
 
 int req_index(char *path){
-    struct  out_buf *buf;
     char *ptr;
+    struct doc *doc;
+    void *data;
+    char comm;
+    int len;
     ptr = path;
-    while(*ptr != NULL){
+    comm = (char)CMD_INDEX;
+    while(*ptr != '\0'){
         if(*ptr == '\n')
             *ptr = '\0';
         ptr++;
     }
+    load_doc_from_f(path, &doc);
+    len = dump_doc(doc, &data);
+    free_doc(&doc);
+    *((char *)data) = comm;
 
-    create_out_buf(&buf);
-    write_buf_c(buf, (char)CMD_INDEX);
-    write_buf_c(buf, (char)CMD_INDEX_FILE);
-    write_buf(buf, path);
-    process(buf->buf, buf->use +1);
-    free_buf(&buf);
+    process(data, len);
+    free(data);
     return 0;
 }
 int process(void *data, int len){
@@ -73,7 +77,7 @@ int run(){
         printf("> ");
         fgets(buf, 100, stdin);
         ptr = buf;
-        while(*ptr != NULL){
+        while(*ptr != '\0'){
             if(*ptr == '\n')
                 *ptr = '\0';
             ptr++;
@@ -117,6 +121,11 @@ int run(){
 int main(int argc, char *argv[]){
     int i,j,com;
     struct query *query, *new;
+    i=0;
+    j=0;
+    com=0;
+    query=NULL;
+    new = NULL;
     if(argc < 3)
         run();
     else{

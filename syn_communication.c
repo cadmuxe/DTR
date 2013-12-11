@@ -114,6 +114,8 @@ int receive_data(int socket_fd, void **data){
     while( (n = recv(socket_fd, ptr, i, 0)) > 0){
         ptr += n;
         i -=n;
+        if(i==0)
+            break;  // under mac it's works without this sentence
     }
     return (int)len;
 }

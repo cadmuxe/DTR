@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <fcntl.h>           /* For O_* constants */
+#include <sys/stat.h> 
+
 #include <unistd.h>
 #include "server.h"
 #include "syn_communication.h"
@@ -37,7 +40,7 @@ void * dispatch(void *mes){
     }
     // A client do an index
     else if (*((char *)data) == (char)CMD_INDEX){
-        do_index(para->socket_fd, (data+1));    // +1 skip the command filed
+        do_index(para->socket_fd, data);    // +1 skip the command filed
     }
     else if(*((char *)data) == (char)CMD_RETRIEVE){
         do_retr(para->socket_fd, data); 
@@ -72,6 +75,7 @@ int do_reg(struct cnode_list *list, unsigned int ip,
     pthread_mutex_unlock(&M_clist);
     address = inet_ntoa(client);
     printf("[Message] Calculation Node: %s registered\n", address);
+    do_update();
 
     return 0;
 }
@@ -87,43 +91,33 @@ int do_index(int socket_fd, void *data){
     int i,j;
     char respond;
     respond = (char)CMD_SUCC;
-    type = *(char *)data;
-    data += 1;
-    path = data;
-    // load one file, path is a file.
-    if(type == (char)CMD_INDEX_FILE){
-        load_doc_from_f(path, &doc);
-        create_count(&count, doc->name);
-        num_workers = get_workers(&clist, &workers);
-        split_doc(doc, num_workers, &doc_list);
-        p_worker = workers;
-        while(p_worker != NULL){
-            p_worker->parameter = (void *)(doc_list->list + p_worker->index);
-            pthread_create(&(p_worker->thread), NULL,
-                   index_agent, (void *)p_worker); 
-            p_worker = p_worker->next;
-        }
-        p_worker = workers;
-        while(p_worker != NULL){
-            pthread_join(p_worker->thread, NULL);
-            p_worker = p_worker->next;
-        }
-        p_worker = workers;
-        while(p_worker != NULL){
-            combine_count(count, (struct count *)(p_worker->result));
-            p_worker = p_worker->next;
-        }
-        free_workers(&workers);
-        add_count_to_index(Dindex, count);
-        free_count(&count);
-        do_update();
+    load_doc(&doc, data);
+        
+    create_count(&count, doc->name);
+    num_workers = get_workers(&clist, &workers);
+    split_doc(doc, num_workers, &doc_list);
+    p_worker = workers;
+    while(p_worker != NULL){
+        p_worker->parameter = (void *)(doc_list->list + p_worker->index);
+        pthread_create(&(p_worker->thread), NULL,
+            index_agent, (void *)p_worker); 
+        p_worker = p_worker->next;
     }
-    // load all file, path is a folder
-    else if(type  == (char)CMD_INDEX_FILE){
+    p_worker = workers;
+    while(p_worker != NULL){
+        pthread_join(p_worker->thread, NULL);
+        p_worker = p_worker->next;
     }
-    else{
-        return -1;
+    p_worker = workers;
+    while(p_worker != NULL){
+        combine_count(count, (struct count *)(p_worker->result));
+        p_worker = p_worker->next;
     }
+    free_workers(&workers);
+    add_count_to_index(Dindex, count);
+    free_count(&count);
+    do_update();
+    
     send_data(socket_fd, &respond,sizeof(char));
     return 0;
 }
@@ -159,9 +153,10 @@ int do_retr(int socket_fd, void *data){
     struct workers *workers, *p_worker;
     struct query_rsl *qrsl;
     int num_worker;
-    int i;
+    int i,flag;
     struct out_buf *out;
     int limit =10;
+    flag = 1;
     qrsl = NULL;
     load_query(&query, data);
     split_query(query, &workers);
@@ -178,7 +173,12 @@ int do_retr(int socket_fd, void *data){
     }
     p_worker = workers;
     while(p_worker != NULL){
-        combine_query_rsl(&qrsl, (struct query_rsl **)&((p_worker->result)));
+        if(flag){
+            qrsl = (struct query_rsl *)(p_worker->result);
+            flag = 0;
+        }
+        else
+            combine_query_rsl(&qrsl, (struct query_rsl **)&((p_worker->result)));
         p_worker = p_worker->next;
     }
     create_out_buf(&out);
@@ -264,8 +264,11 @@ int get_workers_n(struct cnode_list *cl, struct workers **wl, int n){
     }
     if(n> cl->num_node)
         n = cl->num_node;
-    else
-        n = cl->ava_node;
+    else{
+        if(n>cl->ava_node)
+            n = cl->ava_node;
+    }
+    
     if(n==0)
         n =1;
     for(i=0; i<n; i++){
@@ -354,8 +357,8 @@ int main(int argc, char *argv[]){
     struct sockaddr_in clientaddr;
     int clientlen;
     pthread_t thread;
-   
-    if ((S_num_node = sem_open("/semaphore", O_CREAT, 0644, 1)) == SEM_FAILED ) {
+  
+    if ((S_num_node = sem_open("/semaphore", O_CREAT, 0644, 0)) == SEM_FAILED ) {
         perror("sem_open");
         exit(EXIT_FAILURE);
     }
@@ -372,12 +375,11 @@ int main(int argc, char *argv[]){
         p->ip = clientaddr.sin_addr.s_addr;
         pthread_create(&thread, NULL, dispatch, (void *)p); 
     }
-   
     if (sem_close(S_num_node) == -1) {
         perror("sem_close");
         exit(EXIT_FAILURE);
     }
-
+    
     if (sem_unlink("/semaphore") == -1) {
         perror("sem_unlink");
         exit(EXIT_FAILURE);

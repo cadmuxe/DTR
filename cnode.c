@@ -21,7 +21,7 @@ void *work(void *mes){
     struct parameter *para;
     struct doc *doc;
     struct count *count;
-    struct query *query;
+    struct query *query, *ptr;
     struct query_rsl *query_rsl;
     char command;
     int size;
@@ -47,7 +47,15 @@ void *work(void *mes){
         pthread_mutex_unlock(&M_index);
         size = dump_query_rsl(query_rsl, &resp);
         send_data(para->socket_fd,resp, size);
-        printf("[CNode] Retrieve data.\n");
+        ptr = query;
+        printf("[CNode] Retrieve data: (");
+        while(ptr != NULL){
+            printf("%s ",ptr->term);
+            ptr = ptr->next;
+        }
+        printf(")\n");
+        free_query(&query);
+
     }
     /// update index
     else if(command == (char)CMD_UPDATE){

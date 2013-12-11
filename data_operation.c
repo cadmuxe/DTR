@@ -11,6 +11,7 @@
 #include <libgen.h>
 
 #include "data_operation.h"
+#include "data_serialization.h"
 
 
 int load_doc_from_f(char *filepath, struct doc **doc){
@@ -290,6 +291,8 @@ int combine_count(struct count *main, struct count *asst){
         pn_main = main->list;
         main->list->next = NULL;
         main->list->pre = NULL;
+        main->term_count = 1;
+        asst->term_count -=1;
     }
     
     while(pn_asst != NULL){
@@ -299,6 +302,7 @@ int combine_count(struct count *main, struct count *asst){
             temp = pn_asst;
             pn_asst = pn_asst->next;
             free_count_term_node(&temp);
+            asst->term_count -= 1;
         }
         else if(com == 1){ // main is bigger
             temp = pn_asst;
@@ -314,15 +318,18 @@ int combine_count(struct count *main, struct count *asst){
             pn_main->pre = temp;
             pn_main = temp;
             main->term_count += 1;
+            asst->term_count -= 1;
         }
         else{
             if(pn_main->next != NULL)
                 pn_main = pn_main->next;
-            else
+            else{
                 break;
+            }
         }
     }
     if(pn_asst != NULL && pn_main->next == NULL){
+        main->term_count += asst->term_count;
         pn_main->next = pn_asst;
         pn_asst->pre = pn_main;
     }
@@ -434,7 +441,7 @@ int insert_doc_to_term(struct index_term_node *tnode, char *doc_name, int n){
     if(tnode->list == NULL){
         create_index_doc_node(&new_dnode_p, doc_name, n);
         tnode->list = new_dnode_p;
-        tnode->len_list += 1;
+        tnode->len_list = 1;
         return tnode->len_list;
     }
 
@@ -473,7 +480,7 @@ int insert_doc_to_term(struct index_term_node *tnode, char *doc_name, int n){
                 tnode->len_list += 1;
                 dnode_p->next = new_dnode_p;
                 new_dnode_p->pre = dnode_p;
-                return tnode->len_list += 1;
+                return tnode->len_list;
             }
         }
     }
@@ -573,16 +580,17 @@ int free_index(struct index **index){
 }
 int test_index(){
     struct doc *doc;
-    struct index *index;
+    struct index *index, *new_index;
     struct doc_part_list *list;
     struct doc_part *part;
 
     struct count *count, *count_n; 
     struct count_term_node *tnode;
     int i,j;
+    void *data;
     create_index(&index);
 
-    load_doc_from_f("../shakespeare/comedies/asyoulikeit", &doc);
+    load_doc_from_f("asyoulikeit.txt", &doc);
     split_doc(doc, 5, &list);
     count_doc_part(*list->list, &count);
     for(i=1; i<list->len_list; i++){
@@ -592,12 +600,21 @@ int test_index(){
     }
     count->whole =1;
     i = add_count_to_index(index, count);
+    dump_index(index, &data);
+    load_index(&new_index, data);
 
-    load_doc_from_f("../shakespeare/comedies/allswellthatendswell", &doc);
-    count_doc(doc, &count);
+    load_doc_from_f("glossary.txt", &doc);
+    split_doc(doc, 5, &list);
+    count_doc_part(*list->list, &count);
+    for(i=1; i<list->len_list; i++){
+        count_doc_part(*(list->list + i), &count_n);
+        combine_count(count, count_n);
+        free_count(&count_n);
+    }
     count->whole =1;
     i = add_count_to_index(index, count);
-
+    dump_index(index, &data);
+    load_index(&new_index, data);
     printf("%d\n",i);
 
     return 0;
@@ -610,9 +627,10 @@ int retrieve_f_index(struct index *index, int n,
     struct query *ptr_query;
     struct index_term_node *inode;
     struct index_doc_node *dnode;
-    int i,com;
+    int i,com, flag;
 
     i=0;
+    flag=1;
     n_rsl = NULL;
     ptr_query= query;
     while(ptr_query != NULL){
@@ -640,7 +658,12 @@ int retrieve_f_index(struct index *index, int n,
             }
             inode = inode->next;
         }
-        combine_query_rsl(&n_rsl, &nn_rsl);
+        if(flag){
+            flag = 0;
+            n_rsl = nn_rsl;
+        }
+        else
+            combine_query_rsl(&n_rsl, &nn_rsl);
         ptr_query = ptr_query->next;
     }
     (*rsl) = n_rsl;
@@ -694,19 +717,43 @@ int free_query(struct query **query){
     return 0;
 }
 int combine_query_rsl(struct query_rsl **rsl, struct query_rsl **rsl_a){
-    struct query_rsl *ptr, *ptr2;
+    struct query_rsl *ptr, *ptr2, *ptr_temp;
     struct query_rsl *list, *new;
     int com;
+    int i,j;
+    list = NULL;
     if(*rsl == NULL){
-        (*rsl) = *rsl_a;
-        *rsl_a = NULL;
         return 0;
     }
-    else if(*rsl_a == NULL)
+    else if(*rsl_a == NULL){
+        (*rsl) = NULL;
         return 0;
+    }
+    // find the short one.
+    ptr = (*rsl);
+    i = 0;
+    j = 0;
+    while(ptr != NULL){
+        i++;
+        ptr = ptr->next;
+    }
+    ptr = (*rsl_a);
+    while(ptr != NULL){
+        j++;
+        ptr = ptr->next;
+    }
+    if(i<j){
+        ptr = (*rsl);
+        ptr_temp = (*rsl_a);
+    }
+    else{
+        ptr = (*rsl_a);
+        ptr_temp = (*rsl);
+    }
+
     ptr = (*rsl);
     while(ptr != NULL){
-         ptr2 = (*rsl_a);
+         ptr2 = ptr_temp;
          while(ptr2 != NULL){
             com = compare_string(ptr->doc_name, ptr2->doc_name);
             if(com == 0){
