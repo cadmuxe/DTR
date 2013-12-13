@@ -10,7 +10,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <stdint.h>
 #include <unistd.h>
 
 #include "syn_communication.h"
