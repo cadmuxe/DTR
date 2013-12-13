@@ -5,6 +5,12 @@ CFLAGS += -pthread
 
 in the makefile
 
+Tested under:
+
+ * Mac 10.9 (gcc : Apple LLVM version 5.0)
+ * Ubuntu 12.04 (gcc version 4.6.3)
+
+
 ####Name Server
 Change the default ip and port of name server in name_server_info.h
 

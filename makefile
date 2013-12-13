@@ -1,4 +1,9 @@
 CFLAGS += -pthread
+
+# for sun os
+#CFLAGS += -lpthread -lsocket -lnsl -lrt -lnsl -lc -D USE_CUSTOM_INET_ATON
+
+# for gdb
 #CFLAGS += -g
 
 all: server cnode client clean
@@ -25,7 +30,7 @@ cnode.o:
 	gcc -c cnode.c
 
 name_server_info.o:
-	gcc -c name_server_info.c
+	gcc -c name_server_info.c $(CFLAGS)
 
 data_operation.o:
 	gcc -c data_operation.c
